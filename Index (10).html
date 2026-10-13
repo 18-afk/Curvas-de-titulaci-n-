@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Curvas de titulación</title>
+<style>
+:root{
+  --bg:#EEF2F7; --surface:#FFFFFF; --surface2:#F6F8FB; --ink:#14233C; --muted:#586A84; --line:#D3DCE8;
+  --grid:#C6D3E5; --grid-minor:#E4EBF4; --curve:#1D4ED8; --accent:#D6336C; --teal:#0E8F7E; --focus:#1D4ED8;
+  --tab:#2E75B6;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1626; --surface:#15213A; --surface2:#1A2845; --ink:#E6ECF5; --muted:#9AAAC2; --line:#2B3B59;
+    --grid:#2D3F60; --grid-minor:#1E2D49; --curve:#6EA0FF; --accent:#FF6B9A; --teal:#3DD6BF; --focus:#8DB4FF;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1626; --surface:#15213A; --surface2:#1A2845; --ink:#E6ECF5; --muted:#9AAAC2; --line:#2B3B59;
+  --grid:#2D3F60; --grid-minor:#1E2D49; --curve:#6EA0FF; --accent:#FF6B9A; --teal:#3DD6BF; --focus:#8DB4FF;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0; background:var(--bg); color:var(--ink); min-height:100%;
+  font-family:"Avenir Next","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  font-size:15px; line-height:1.45; font-variant-numeric:tabular-nums}
+.app{max-width:1220px; margin:0 auto; padding:20px 16px 48px}
+h1{font-size:24px; line-height:1.15; margin:0 0 4px; letter-spacing:-.01em}
+.sub{margin:0 0 16px; color:var(--muted); max-width:62ch}
+:focus-visible{outline:3px solid var(--focus); outline-offset:2px; border-radius:6px}
+
+.tabs{display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; margin-bottom:16px; scrollbar-width:thin}
+.tab{flex:0 0 auto; appearance:none; border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font:inherit; font-weight:600; padding:9px 14px; border-radius:10px; cursor:pointer; border-bottom:4px solid var(--line)}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--tab)}
+
+.layout{display:grid; grid-template-columns:330px minmax(0,1fr); gap:16px; align-items:start}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px}
+.controls{position:sticky; top:12px}
+.controls h2,.explorer h2{font-size:15px; margin:0 0 12px}
+.field{margin-bottom:12px}
+.field label{display:block; font-size:13px; font-weight:600; margin-bottom:4px}
+.field .hint{font-weight:400; color:var(--muted)}
+.inp{display:flex; align-items:center; border:1px solid var(--line); background:var(--surface2); border-radius:8px}
+.inp:focus-within{border-color:var(--focus); box-shadow:0 0 0 2px color-mix(in srgb,var(--focus) 30%,transparent)}
+.inp input,.inp select,.field select,textarea{font:inherit; font-size:16px; color:var(--ink); background:transparent; border:0; padding:8px 10px; width:100%; min-width:0; outline:none}
+.inp .unit{padding:0 10px 0 0; color:var(--muted); font-size:13px; white-space:nowrap}
+.field select{border:1px solid var(--line); background:var(--surface2); border-radius:8px}
+details.adv{margin-top:6px; border-top:1px solid var(--line); padding-top:10px}
+details.adv summary{cursor:pointer; font-weight:600; font-size:13px; margin-bottom:10px}
+.note{font-size:12.5px; color:var(--muted); margin:10px 0 0}
+
+.results{display:grid; gap:14px; min-width:0}
+.msg{border:1px solid var(--accent); background:color-mix(in srgb,var(--accent) 12%,var(--surface)); border-radius:10px; padding:10px 14px}
+.infobar{display:flex; flex-wrap:wrap; gap:8px}
+.info{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px 12px; min-width:130px}
+.info b{display:block; font-size:12.5px; font-weight:600; color:var(--muted)}
+.info span{font-size:18px; font-weight:700}
+.plotcard{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 12px 10px}
+.plot{position:relative; touch-action:pan-y; cursor:crosshair; user-select:none; -webkit-user-select:none}
+.plot svg{display:block}
+.tip{position:absolute; pointer-events:none; background:var(--ink); color:var(--bg); font-size:12.5px; padding:5px 8px; border-radius:6px; white-space:nowrap; transform:translate(-50%,-130%); z-index:2}
+.legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:6px; font-size:13px; color:var(--muted)}
+.legend i{display:inline-block; width:18px; height:0; border-top:3px solid; vertical-align:middle; margin-right:6px}
+.plotbar{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:6px; font-size:13px; color:var(--muted)}
+.plotbar select{font:inherit; font-size:13px; padding:3px 6px; border-radius:6px; border:1px solid var(--line); background:var(--surface2); color:var(--ink)}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{appearance:none; font:inherit; cursor:pointer; text-align:left; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:8px 12px}
+.chip small{display:block; color:var(--muted); font-size:12px}
+.chip strong{font-size:16px}
+.chip:hover,.chip[aria-pressed="true"]{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+
+.explorer .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:10px}
+.explorer .vin{width:130px}
+.explorer input[type=range]{flex:1 1 200px; accent-color:var(--accent); min-width:140px}
+.badge{display:inline-block; font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:99px; background:color-mix(in srgb,var(--accent) 14%,var(--surface)); color:var(--ink); border:1px solid var(--accent)}
+.steps{margin:8px 0 0; padding-left:20px}
+.steps li{margin:4px 0}
+.result{margin-top:10px; font-size:20px; font-weight:700}
+.result span{color:var(--accent)}
+
+details.tablebox{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+details.tablebox summary{cursor:pointer; font-weight:600}
+.btn{appearance:none; font:inherit; font-weight:600; cursor:pointer; color:var(--ink); background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:7px 12px}
+.btn:hover{border-color:var(--focus)}
+.tablescroll{overflow-x:auto; max-height:420px; margin-top:10px; border:1px solid var(--line); border-radius:8px}
+table{border-collapse:collapse; width:100%; font-size:13px}
+th,td{padding:5px 10px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--line)}
+th{position:sticky; top:0; background:var(--surface2); font-weight:600; text-align:center}
+td:nth-child(n){font-variant-numeric:tabular-nums}
+td.l{text-align:left}
+tr.keyrow td{background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+textarea{border:1px solid var(--line); background:var(--surface2); border-radius:8px; width:100%; min-height:260px; resize:vertical; font-family:inherit}
+.btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.charts3{display:grid; gap:14px}
+.toast{position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:9px 16px; border-radius:99px; font-size:14px; z-index:10}
+
+svg text{font-family:inherit}
+.ax text{fill:var(--muted); font-size:11px}
+.axt{fill:var(--ink); font-size:12px; font-weight:600}
+
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  .controls{position:static}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Curvas de titulación</h1>
+  <p class="sub">Elige el método, cambia los datos y toca o arrastra sobre la gráfica: abajo verás el procedimiento completo de ese punto.</p>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Método"></nav>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+'use strict';
+//#MATH-START
+const LOG = Math.log10;
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+function fN(x,d){ if(d===undefined) d=2; return (x==null||!Number.isFinite(x))?'—':x.toFixed(d).replace('-','−'); }
+function fE(x){ if(!Number.isFinite(x)) return '—'; if(x===0) return '0'; const parts=x.toExponential(2).split('e'); const n=parseInt(parts[1],10);
+  const s=String(Math.abs(n)).replace(/\d/g,d=>SUP[d]); return parts[0].replace('-','−')+'×10'+(n<0?'⁻':'')+s; }
+function fv(x){ if(!Number.isFinite(x)) return '—'; const a=Math.abs(x); if(a===0) return '0'; if(a>=0.001&&a<1000) return String(+x.toPrecision(4)).replace('-','−'); return fE(x); }
+function zoneOf(V,Veq){ return Math.abs(V)<1e-9?0:(Math.abs(V-Veq)<1e-6?2:(V<Veq?1:3)); }
+
+/* ---------- Ácido-base ---------- */
+const AB = {
+  key:'ab', tab:'Ácido-base', color:'#2E75B6', ylabel:'pH', ymin:0, ymax:14, ytitle:'pH',
+  defaults:{tipo:3,Ca:0.1,Va:10,Ct:0.1,pK:4.76,pKw:14},
+  fields(p){
+    const f=[{k:'tipo',type:'select',label:'Tipo de titulación',opts:[[1,'Ácido fuerte con base fuerte'],[2,'Base fuerte con ácido fuerte'],[3,'Ácido débil con base fuerte'],[4,'Base débil con ácido fuerte']]}];
+    if(p.tipo===3) f.push({type:'preset',label:'Ácido de ejemplo',opts:[['Ácido acético',{pK:4.76}],['Ácido fórmico',{pK:3.75}],['Ácido benzoico',{pK:4.20}],['Ácido fluorhídrico',{pK:3.17}],['Ácido láctico',{pK:3.86}]]});
+    if(p.tipo===4) f.push({type:'preset',label:'Base de ejemplo',opts:[['Amoniaco',{pK:4.75}],['Metilamina',{pK:3.36}],['Piridina',{pK:8.75}]]});
+    const names={1:'Concentración del ácido',2:'Concentración de la base',3:'Concentración del ácido débil',4:'Concentración de la base débil'};
+    f.push({k:'Ca',label:names[p.tipo],unit:'mol/L'});
+    f.push({k:'Va',label:'Volumen de la alícuota',unit:'mL'});
+    f.push({k:'Ct',label:(p.tipo===1||p.tipo===3)?'Concentración del titulante (base)':'Concentración del titulante (ácido)',unit:'mol/L'});
+    if(p.tipo>=3) f.push({k:'pK',label:p.tipo===3?'pKa del ácido':'pKb de la base',unit:''});
+    f.push({k:'pKw',label:'pKw',hint:'(14 a 25 °C)',unit:''});
+    return f;
+  },
+  validate(p){ if(!(p.Ca>0&&p.Va>0&&p.Ct>0)) return 'Las concentraciones y el volumen deben ser mayores que 0.'; return null; },
+  prep(p){ const n0=p.Ca*p.Va/1000; return {n0,Veq:n0/p.Ct*1000}; },
+  info(p,c){ const a=[['Volumen de equivalencia',fN(c.Veq,2)+' mL'],['Moles de analito',fE(c.n0)+' mol']];
+    if(p.tipo>=3) a.push([p.tipo===3?'pH = pKa en ½ Veq':'pOH = pKb en ½ Veq',fN(p.pK,2)]); return a; },
+  keys(c){ return [['Inicio',0],['½ Veq',c.Veq/2],['Equivalencia',c.Veq]]; },
+  calc(p,c,V){
+    const nt=p.Ct*V/1000, vt=(p.Va+V)/1000, nr=Math.max(c.n0-nt,0), ne=Math.max(nt-c.n0,0), z=zoneOf(V,c.Veq);
+    const T=p.tipo, pK=p.pK, pKw=p.pKw, Ca=p.Ca; let y, eq, st=[];
+    const excessOH=()=>{ const oh=ne/vt; y=pKw+LOG(oh); eq='pOH = −log([OH⁻] en exceso)';
+      st=['[OH⁻] = n en exceso / V total = '+fE(ne)+' / '+fN(vt,4)+' L = '+fE(oh)+' M','pOH = −log('+fE(oh)+') = '+fN(-LOG(oh)),'pH = pKw − pOH = '+fN(y)]; };
+    const excessH=()=>{ const h=ne/vt; y=-LOG(h); eq='pH = −log([H⁺] en exceso)';
+      st=['[H⁺] = n en exceso / V total = '+fE(ne)+' / '+fN(vt,4)+' L = '+fE(h)+' M','pH = −log('+fE(h)+') = '+fN(y)]; };
+    if(T===1){
+      if(z===0){ y=-LOG(Ca); eq='pH = −log C'; st=['Ácido fuerte, disociación total: pH = −log '+fv(Ca)+' = '+fN(y)]; }
+      else if(z===1){ const h=nr/vt; y=-LOG(h); eq='pH = −log([H⁺] sobrante)'; st=['[H⁺] = n sobrante / V total = '+fE(nr)+' / '+fN(vt,4)+' L = '+fE(h)+' M','pH = −log('+fE(h)+') = '+fN(y)]; }
+      else if(z===2){ y=pKw/2; eq='pH = pKw/2'; st=['Solo hay sal neutra y agua: pH = pKw/2 = '+fN(y)]; }
+      else excessOH();
+    } else if(T===2){
+      if(z===0){ y=pKw+LOG(Ca); eq='pOH = −log C'; st=['Base fuerte: pOH = −log '+fv(Ca)+' = '+fN(-LOG(Ca)),'pH = pKw − pOH = '+fN(y)]; }
+      else if(z===1){ const oh=nr/vt; y=pKw+LOG(oh); eq='pOH = −log([OH⁻] sobrante)'; st=['[OH⁻] = n sobrante / V total = '+fE(nr)+' / '+fN(vt,4)+' L = '+fE(oh)+' M','pOH = −log('+fE(oh)+') = '+fN(-LOG(oh)),'pH = pKw − pOH = '+fN(y)]; }
+      else if(z===2){ y=pKw/2; eq='pH = pKw/2'; st=['Solo hay sal neutra y agua: pH = pKw/2 = '+fN(y)]; }
+      else excessH();
+    } else if(T===3){
+      if(z===0){ y=0.5*(pK-LOG(Ca)); eq='pH = ½(pKa − log C)'; st=['Solo hay ácido débil: pH = ½(pKa − log C) = ½('+fN(pK)+' − log '+fv(Ca)+') = '+fN(y)]; }
+      else if(z===1){ y=pK+LOG(nt/nr); eq='Henderson: pH = pKa + log(n A⁻ / n HA)';
+        st=['n A⁻ formado = n de titulante = '+fE(nt)+' mol','n HA restante = n0 − n titulante = '+fE(nr)+' mol','Zona buffer, Henderson: pH = '+fN(pK)+' + log('+fE(nt)+' / '+fE(nr)+') = '+fN(y)]; }
+      else if(z===2){ const C=c.n0/vt, pKb=pKw-pK, pOH=0.5*(pKb-LOG(C)); y=pKw-pOH; eq='Hidrólisis: pOH = ½(pKb − log C sal)';
+        st=['Solo queda A⁻ (base débil): C = n / V total = '+fE(c.n0)+' / '+fN(vt,4)+' L = '+fE(C)+' M','pKb = pKw − pKa = '+fN(pKb),'pOH = ½(pKb − log C) = '+fN(pOH),'pH = pKw − pOH = '+fN(y)]; }
+      else excessOH();
+    } else {
+      if(z===0){ const pOH=0.5*(pK-LOG(Ca)); y=pKw-pOH; eq='pOH = ½(pKb − log C)'; st=['Solo hay base débil: pOH = ½(pKb − log C) = ½('+fN(pK)+' − log '+fv(Ca)+') = '+fN(pOH),'pH = pKw − pOH = '+fN(y)]; }
+      else if(z===1){ const pOH=pK+LOG(nt/nr); y=pKw-pOH; eq='Henderson: pOH = pKb + log(n BH⁺ / n B)';
+        st=['n BH⁺ formado = n de titulante = '+fE(nt)+' mol','n B restante = n0 − n titulante = '+fE(nr)+' mol','Zona buffer: pOH = '+fN(pK)+' + log('+fE(nt)+' / '+fE(nr)+') = '+fN(pOH),'pH = pKw − pOH = '+fN(y)]; }
+      else if(z===2){ const C=c.n0/vt, pKa=pKw-pK; y=0.5*(pKa-LOG(C)); eq='Hidrólisis: pH = ½(pKa − log C sal)';
+        st=['Solo queda BH⁺ (ácido débil): C = n / V total = '+fE(C)+' M','pKa = pKw − pKb = '+fN(pKa),'pH = ½(pKa − log C) = '+fN(y)]; }
+      else excessH();
+    }
+    const zoneName=['Inicio',(T>=3?'Zona buffer':'Antes del equivalente'),'Equivalencia','Después del equivalente'][z];
+    return {V,nt,vt,nr,ne,z,zoneName,y,y2:null,eq,steps:st,resLabel:'pH'};
+  },
+  cols:[
+    {h:'V (mL)',v:r=>r.V,d:2},{h:'n titulante (mol)',v:r=>r.nt,d:'e'},{h:'V total (L)',v:r=>r.vt,d:4},
+    {h:'n analito sin reaccionar (mol)',v:r=>r.nr,d:'e'},{h:'n titulante en exceso (mol)',v:r=>r.ne,d:'e'},
+    {h:'Zona',v:r=>r.zoneName,d:'s'},{h:'pH',v:r=>r.y,d:2}
+  ]
+};
+
+/* ---------- EDTA ---------- */
+const EDTA = {
+  key:'edta', tab:'Complejometría (EDTA)', color:'#548235', ylabel:"pM'", ytitle:"pM' (metal no complejado con EDTA)",
+  defaults:{CM:0.01,VM:20,CY:0.01,logKf:10.65,pH:10,Ka1:1.0e-2,Ka2:2.2e-3,Ka3:6.9e-7,Ka4:5.5e-11,L:0,b1:0,b2:0,b3:0,b4:0},
+  fields(p){ return [
+    {type:'preset',label:'Metal de ejemplo (log Kf)',opts:[['Mg²⁺',{logKf:8.79}],['Ca²⁺',{logKf:10.65}],['Zn²⁺',{logKf:16.50}],['Pb²⁺',{logKf:18.04}],['Cu²⁺',{logKf:18.80}],['Fe³⁺',{logKf:25.1}]]},
+    {k:'CM',label:'Concentración del metal',unit:'mol/L'},{k:'VM',label:'Volumen del metal',unit:'mL'},
+    {k:'CY',label:'Concentración del EDTA',unit:'mol/L'},{k:'logKf',label:'log Kf del complejo MY',unit:''},
+    {k:'pH',label:'pH del amortiguador',unit:''},
+    {type:'adv',label:'Constantes del EDTA y complejante auxiliar',fields:[
+      {k:'Ka1',label:'Ka1 del H₄Y',unit:''},{k:'Ka2',label:'Ka2 del H₄Y',unit:''},{k:'Ka3',label:'Ka3 del H₄Y',unit:''},{k:'Ka4',label:'Ka4 del H₄Y',unit:''},
+      {k:'L',label:'[L] complejante auxiliar libre (0 si no hay)',unit:'mol/L'},
+      {k:'b1',label:'β₁ metal–L',unit:''},{k:'b2',label:'β₂ metal–L',unit:''},{k:'b3',label:'β₃ metal–L',unit:''},{k:'b4',label:'β₄ metal–L',unit:''}]}
+  ]; },
+  validate(p){ if(!(p.CM>0&&p.VM>0&&p.CY>0)) return 'Las concentraciones y el volumen deben ser mayores que 0.'; return null; },
+  prep(p){ const H=Math.pow(10,-p.pH);
+    const a4=(p.Ka1*p.Ka2*p.Ka3*p.Ka4)/(Math.pow(H,4)+p.Ka1*Math.pow(H,3)+p.Ka1*p.Ka2*H*H+p.Ka1*p.Ka2*p.Ka3*H+p.Ka1*p.Ka2*p.Ka3*p.Ka4);
+    const aM=1+p.b1*p.L+p.b2*Math.pow(p.L,2)+p.b3*Math.pow(p.L,3)+p.b4*Math.pow(p.L,4);
+    const Kc=Math.pow(10,p.logKf)*a4/aM; const n0=p.CM*p.VM/1000;
+    return {H,a4,aM,Kc,n0,Veq:n0/p.CY*1000}; },
+  info(p,c){ return [['Volumen de equivalencia',fN(c.Veq,2)+' mL'],['α(Y⁴⁻)',fN(c.a4,4)],["log K'f (condicional)",fN(LOG(c.Kc),2)]]; },
+  keys(c){ return [['Inicio',0],['½ Veq',c.Veq/2],['Equivalencia',c.Veq]]; },
+  calc(p,c,V){
+    const nt=p.CY*V/1000, vt=(p.VM+V)/1000, nr=Math.max(c.n0-nt,0), ne=Math.max(nt-c.n0,0), z=zoneOf(V,c.Veq);
+    let y, eq, st=[];
+    if(z===0){ y=-LOG(p.CM); eq="pM' = −log C_M"; st=["Solo hay metal: pM' = −log "+fv(p.CM)+' = '+fN(y)]; }
+    else if(z===1){ const m=nr/vt; y=-LOG(m); eq="pM' = −log(n M sin reaccionar / V total)"; st=["[M'] = n de metal sin reaccionar / V total = "+fE(nr)+' / '+fN(vt,4)+' L = '+fE(m)+' M',"pM' = −log("+fE(m)+') = '+fN(y)]; }
+    else if(z===2){ const CMY=c.n0/vt; y=0.5*(LOG(c.Kc)-LOG(CMY)); eq="pM' = ½(log K'f − log C_MY)";
+      st=['Todo el metal está como MY: C_MY = '+fE(c.n0)+' / '+fN(vt,4)+' L = '+fE(CMY)+' M',"K'f = Kf·α(Y⁴⁻)/coef. = "+fE(c.Kc)+" (log K'f = "+fN(LOG(c.Kc))+')',"pM' = ½(log K'f − log C_MY) = "+fN(y)]; }
+    else { y=LOG(c.Kc*ne/c.n0); eq="pM' = log(K'f · n EDTA exceso / n M)";
+      st=['n de EDTA en exceso = '+fE(ne)+' mol; n de MY = '+fE(c.n0)+' mol',"[M'] = n MY / (K'f · n EDTA exceso) = "+fE(c.n0/(c.Kc*ne))+' M',"pM' = log(K'f · n exceso / n M) = "+fN(y)]; }
+    const y2=y+LOG(c.aM);
+    if(c.aM!==1) st.push('pM libre = pM\' + log(coef.) = '+fN(y2));
+    const zoneName=['Inicio','Antes del eq. (metal en exceso)','Equivalencia (disociación de MY)','Después del eq. (EDTA en exceso)'][z];
+    return {V,nt,vt,nr,ne,z,zoneName,y,y2,eq,steps:st,resLabel:"pM'"};
+  },
+  cols:[
+    {h:'V (mL)',v:r=>r.V,d:2},{h:'n EDTA (mol)',v:r=>r.nt,d:'e'},{h:'V total (L)',v:r=>r.vt,d:4},
+    {h:'n metal sin reaccionar (mol)',v:r=>r.nr,d:'e'},{h:'n EDTA en exceso (mol)',v:r=>r.ne,d:'e'},
+    {h:'Zona',v:r=>r.zoneName,d:'s'},{h:"pM'",v:r=>r.y,d:2},{h:'pM libre',v:r=>r.y2,d:2}
+  ]
+};
+
+/* ---------- Precipitación ---------- */
+const PP = {
+  key:'pp', tab:'Precipitación', color:'#BF8F00', ylabel:'pX', ytitle:'pX / pAg',
+  defaults:{C:0.1,V:10,Ct:0.1,Kps:1.8e-10},
+  fields(p){ return [
+    {type:'preset',label:'Sal de ejemplo',opts:[['AgCl',{Kps:1.8e-10}],['AgBr',{Kps:5.0e-13}],['AgI',{Kps:8.3e-17}],['AgSCN',{Kps:1.1e-12}]]},
+    {k:'C',label:'Concentración del analito X⁻',unit:'mol/L'},{k:'V',label:'Volumen del analito',unit:'mL'},
+    {k:'Ct',label:'Concentración del AgNO₃',unit:'mol/L'},{k:'Kps',label:'Kps de AgX',unit:''}]; },
+  validate(p){ if(!(p.C>0&&p.V>0&&p.Ct>0&&p.Kps>0)) return 'Concentraciones, volumen y Kps deben ser mayores que 0.'; return null; },
+  prep(p){ const n0=p.C*p.V/1000; return {n0,Veq:n0/p.Ct*1000,pKps:-LOG(p.Kps)}; },
+  info(p,c){ return [['Volumen de equivalencia',fN(c.Veq,2)+' mL'],['pKps',fN(c.pKps,2)],['pX en el equivalente',fN(c.pKps/2,2)]]; },
+  keys(c){ return [['Inicio',0],['½ Veq',c.Veq/2],['Equivalencia',c.Veq]]; },
+  calc(p,c,V){
+    const nt=p.Ct*V/1000, vt=(p.V+V)/1000, nr=Math.max(c.n0-nt,0), ne=Math.max(nt-c.n0,0), z=zoneOf(V,c.Veq);
+    let y, eq, st=[];
+    if(z===0){ y=-LOG(p.C); eq='pX = −log C'; st=['Solo hay X⁻: pX = −log '+fv(p.C)+' = '+fN(y)]; }
+    else if(z===1){ const x=nr/vt; y=-LOG(x); eq='pX = −log(n X⁻ sin reaccionar / V total)'; st=['[X⁻] = '+fE(nr)+' / '+fN(vt,4)+' L = '+fE(x)+' M','pX = −log('+fE(x)+') = '+fN(y)]; }
+    else if(z===2){ y=c.pKps/2; eq='pX = ½ pKps'; st=['Solo hay AgX disuelto: [X⁻] = [Ag⁺] = √Kps','pX = ½ pKps = ½('+fN(c.pKps)+') = '+fN(y)]; }
+    else { const ag=ne/vt; y=c.pKps+LOG(ag); eq='pAg = −log([Ag⁺] exceso); pX = pKps − pAg';
+      st=['[Ag⁺] = n en exceso / V total = '+fE(ne)+' / '+fN(vt,4)+' L = '+fE(ag)+' M','pAg = −log('+fE(ag)+') = '+fN(-LOG(ag)),'pX = pKps − pAg = '+fN(c.pKps)+' − '+fN(-LOG(ag))+' = '+fN(y)]; }
+    const zoneName=['Inicio','Antes del equivalente','Equivalencia','Después del equivalente'][z];
+    return {V,nt,vt,nr,ne,z,zoneName,y,y2:c.pKps-y,eq,steps:st,resLabel:'pX'};
+  },
+  cols:[
+    {h:'V (mL)',v:r=>r.V,d:2},{h:'n Ag⁺ (mol)',v:r=>r.nt,d:'e'},{h:'V total (L)',v:r=>r.vt,d:4},
+    {h:'n X⁻ sin reaccionar (mol)',v:r=>r.nr,d:'e'},{h:'n Ag⁺ en exceso (mol)',v:r=>r.ne,d:'e'},
+    {h:'Zona',v:r=>r.zoneName,d:'s'},{h:'pX',v:r=>r.y,d:2},{h:'pAg',v:r=>r.y2,d:2}
+  ]
+};
+
+/* ---------- Redox ---------- */
+const RX = {
+  key:'rx', tab:'Redox (Nernst)', color:'#C55A11', ylabel:'E', ytitle:'E vs referencia (V)',
+  defaults:{C:0.1,V:10,Ct:0.1,E1:0.771,n1:1,E2:1.44,n2:1,T:25,Eref:0},
+  fields(p){ return [
+    {type:'preset',label:'Sistema de ejemplo',opts:[['Fe²⁺ con Ce⁴⁺',{E1:0.771,n1:1,E2:1.44,n2:1}]]},
+    {k:'C',label:'Concentración del analito (reductor)',unit:'mol/L'},{k:'V',label:'Volumen del analito',unit:'mL'},
+    {k:'Ct',label:'Concentración del titulante (oxidante)',unit:'mol/L'},
+    {k:'E1',label:'E° del par del analito',unit:'V'},{k:'n1',label:'n del par del analito',unit:'e⁻'},
+    {k:'E2',label:'E° del par del titulante',unit:'V'},{k:'n2',label:'n del par del titulante',unit:'e⁻'},
+    {k:'T',label:'Temperatura',unit:'°C'},
+    {k:'Eref',label:'Electrodo de referencia',hint:'(0 = vs ESH; calomel sat. 0.241)',unit:'V'}]; },
+  validate(p){ if(!(p.C>0&&p.V>0&&p.Ct>0&&p.n1>0&&p.n2>0)) return 'Concentraciones, volumen y n deben ser mayores que 0.'; return null; },
+  prep(p){ const n0=p.C*p.V/1000; const s=Math.LN10*8.314462*(273.15+p.T)/96485.33;
+    const Veq=(p.n1/p.n2)*n0/p.Ct*1000; const Eeq=(p.n1*p.E1+p.n2*p.E2)/(p.n1+p.n2); return {n0,s,Veq,Eeq}; },
+  info(p,c){ return [['Volumen de equivalencia',fN(c.Veq,2)+' mL'],['E en el equivalente (vs ESH)',fN(c.Eeq,3)+' V'],['Pendiente 2.303RT/F',fN(c.s,4)+' V']]; },
+  keys(c){ return [['½ Veq',c.Veq/2],['Equivalencia',c.Veq],['2 × Veq',2*c.Veq]]; },
+  calc(p,c,V){
+    const nt=p.Ct*V/1000, z=zoneOf(V,c.Veq);
+    const nOx1=Math.min(c.n0,nt*p.n2/p.n1), nRed1=Math.max(c.n0-nt*p.n2/p.n1,0), nOx2=Math.max(nt-c.n0*p.n1/p.n2,0), nRed2=Math.min(nt,c.n0*p.n1/p.n2);
+    let E=null, eq, st=[];
+    if(z===0){ eq='Sin Ox₁ el potencial no está definido'; st=['Aún no hay forma oxidada del analito: E indefinido en V = 0. La curva empieza al añadir titulante.']; }
+    else if(z===1){ E=p.E1+c.s/p.n1*LOG(nOx1/nRed1); eq='E = E°₁ + (2.303RT/n₁F)·log(n Ox₁ / n Red₁)';
+      st=['n Ox₁ formado = '+fE(nOx1)+' mol; n Red₁ restante = '+fE(nRed1)+' mol','E = '+fN(p.E1,3)+' + ('+fN(c.s,4)+'/'+p.n1+')·log('+fE(nOx1)+' / '+fE(nRed1)+') = '+fN(E,3)+' V']; }
+    else if(z===2){ E=c.Eeq; eq='E = (n₁E°₁ + n₂E°₂)/(n₁ + n₂)'; st=['En el equivalente: E = ('+p.n1+'·'+fN(p.E1,3)+' + '+p.n2+'·'+fN(p.E2,3)+')/('+p.n1+' + '+p.n2+') = '+fN(E,3)+' V']; }
+    else { E=p.E2+c.s/p.n2*LOG(nOx2/nRed2); eq='E = E°₂ + (2.303RT/n₂F)·log(n Ox₂ / n Red₂)';
+      st=['n Ox₂ en exceso = '+fE(nOx2)+' mol; n Red₂ formado = '+fE(nRed2)+' mol','E = '+fN(p.E2,3)+' + ('+fN(c.s,4)+'/'+p.n2+')·log('+fE(nOx2)+' / '+fE(nRed2)+') = '+fN(E,3)+' V']; }
+    const y=E==null?null:E-p.Eref;
+    if(E!=null && p.Eref!==0) st.push('Contra la referencia: E − E_ref = '+fN(E,3)+' − '+fN(p.Eref,3)+' = '+fN(y,3)+' V');
+    const zoneName=['Inicio','Antes del equivalente','Equivalencia','Después del equivalente'][z];
+    return {V,nt,nOx1,nRed1,nOx2,nRed2,z,zoneName,y,y2:E,eq,steps:st,resLabel:'E'};
+  },
+  cols:[
+    {h:'V (mL)',v:r=>r.V,d:2},{h:'n oxidante (mol)',v:r=>r.nt,d:'e'},{h:'n Ox₁ (mol)',v:r=>r.nOx1,d:'e'},{h:'n Red₁ (mol)',v:r=>r.nRed1,d:'e'},
+    {h:'n Ox₂ exceso (mol)',v:r=>r.nOx2,d:'e'},{h:'n Red₂ (mol)',v:r=>r.nRed2,d:'e'},{h:'Zona',v:r=>r.zoneName,d:'s'},
+    {h:'E vs ESH (V)',v:r=>r.y2,d:3},{h:'E vs referencia (V)',v:r=>r.y,d:3}
+  ]
+};
+
+/* ---------- Datos experimentales ---------- */
+function parseData(text){
+  const out=[]; text.split(/\r?\n/).forEach(line=>{ const t=line.trim(); if(!t) return;
+    let parts=t.split(/[\t; ]+/); if(parts.length<2 && t.indexOf(',')>=0) parts=t.split(',');
+    const a=parseFloat(String(parts[0]).replace(',','.')), b=parseFloat(String(parts[1]).replace(',','.'));
+    if(Number.isFinite(a)&&Number.isFinite(b)) out.push([a,b]); });
+  out.sort((x,y)=>x[0]-y[0]);
+  return out.filter((r,i)=>i===0||r[0]>out[i-1][0]);
+}
+function derivs(pts){
+  const n=pts.length; const m1=[]; for(let i=0;i<n-1;i++){ const dv=pts[i+1][0]-pts[i][0]; m1.push({x:(pts[i][0]+pts[i+1][0])/2,d:(pts[i+1][1]-pts[i][1])/dv}); }
+  const m2=[]; for(let i=0;i<m1.length-1;i++) m2.push({x:(m1[i].x+m1[i+1].x)/2,d2:(m1[i+1].d-m1[i].d)/(m1[i+1].x-m1[i].x)});
+  let i1=-1,best=-1; m1.forEach((r,i)=>{ if(Math.abs(r.d)>best){best=Math.abs(r.d); i1=i;} });
+  const veq1=i1>=0?m1[i1].x:null; const cross=[];
+  for(let i=0;i<m2.length-1;i++){ const a=m2[i],b=m2[i+1]; if(a.d2*b.d2<=0 && b.d2!==a.d2) cross.push(a.x-a.d2*(b.x-a.x)/(b.d2-a.d2)); }
+  let veq2=null; if(veq1!=null && cross.length){ veq2=cross.reduce((u,v)=>Math.abs(v-veq1)<Math.abs(u-veq1)?v:u); }
+  return {m1,m2,i1,veq1,veq2};
+}
+function simpH(V){ const Ca=0.1,Va=10,Ct=0.1,Ka=Math.pow(10,-4.76),Kw=1e-14; const A=Ca*Va/(Va+V), Na=Ct*V/(Va+V); let lo=-14,hi=0;
+  for(let i=0;i<200;i++){ const mid=(lo+hi)/2,h=Math.pow(10,mid); const g=Na+h-Kw/h-A*Ka/(Ka+h); if(g>0) hi=mid; else lo=mid; }
+  return Math.round(-(lo+hi)/2*100)/100; }
+const EXAMPLE=[0,1,2,3,4,5,6,7,8,8.5,9,9.5,9.8,9.9,10,10.1,10.2,10.5,11,11.5,12,13,14,15,16,18,20,22,25,30].map(v=>v+'\t'+simpH(v)).join('\n');
+//#MATH-END
+
+/* =================== UI =================== */
+AB.resLabel='pH'; EDTA.resLabel="pM'"; PP.resLabel='pX'; RX.resLabel='E';
+const METHODS=[AB,EDTA,PP,RX];
+const state={active:'ab',p:{},V:{},xf:{},data:{text:EXAMPLE,kind:'pH'}};
+METHODS.forEach(m=>{ state.p[m.key]=Object.assign({},m.defaults); state.V[m.key]=null; state.xf[m.key]=2; });
+const $=s=>document.querySelector(s);
+const el=(tag,attrs,html)=>{ const e=document.createElement(tag); if(attrs) Object.keys(attrs).forEach(k=>e.setAttribute(k,attrs[k])); if(html!=null) e.innerHTML=html; return e; };
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+let toastT; function toast(t){ const e=$('#toast'); e.textContent=t; e.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>e.hidden=true,2200); }
+async function copyText(t){ try{ await navigator.clipboard.writeText(t); return true; }catch(e){ try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); ta.remove(); return ok; }catch(e2){ return false; } } }
+
+/* ---- gráficas SVG ---- */
+function niceTicks(min,max,n){ const span=max-min; const raw=span/n; const mag=Math.pow(10,Math.floor(Math.log10(raw))); const norm=raw/mag;
+  const step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag; const start=Math.ceil(min/step-1e-9)*step; const t=[];
+  for(let v=start;v<=max+step*1e-9;v+=step) t.push(+v.toFixed(10)); return {ticks:t,step}; }
+let plotId=0; const plots=[];
+function makePlot(container){ container.classList.add('plot'); container.innerHTML='<div class="svgbox"></div><div class="tip" hidden></div>'; container._id=++plotId; plots.push(container);
+  const tip=container.querySelector('.tip');
+  const toData=e=>{ const g=container._geom; if(!g) return null; const r=container.getBoundingClientRect(); const px=e.clientX-r.left; return g.xmin+(px-g.ml)/(g.W-g.ml-g.mr)*(g.xmax-g.xmin); };
+  container.addEventListener('pointermove',e=>{ const g=container._geom,cfg=container._cfg; if(!g) return; const x=toData(e);
+    if(container._drag && cfg.onPick && x!=null) cfg.onPick(Math.min(g.xmax,Math.max(g.xmin,x)));
+    if(x==null||x<g.xmin||x>g.xmax){ tip.hidden=true; return; }
+    const s=cfg.series[0]; let best=null,bd=Infinity; s.pts.forEach(p=>{ if(p.y==null) return; const d=Math.abs(p.x-x); if(d<bd){bd=d;best=p;} });
+    if(!best){ tip.hidden=true; return; }
+    tip.hidden=false; tip.textContent=cfg.tip(best); tip.style.left=g.sx(best.x)+'px'; tip.style.top=g.sy(best.y)+'px'; });
+  container.addEventListener('pointerleave',()=>{ tip.hidden=true; });
+  container.addEventListener('pointerdown',e=>{ const cfg=container._cfg; if(!cfg||!cfg.onPick) return; container._drag=true; try{container.setPointerCapture(e.pointerId);}catch(_){}
+    const g=container._geom, x=toData(e); if(x!=null) cfg.onPick(Math.min(g.xmax,Math.max(g.xmin,x))); });
+  const end=()=>{ container._drag=false; }; container.addEventListener('pointerup',end); container.addEventListener('pointercancel',end);
+}
+function drawPlot(c){ const cfg=c._cfg; if(!cfg) return;
+  const W=Math.max(280,c.clientWidth||640), H=Math.round(Math.max(250,Math.min(400,W*0.56)));
+  const ml=54,mr=14,mt=14,mb=44,pw=W-ml-mr,ph=H-mt-mb;
+  let xmin=cfg.xmin==null?0:cfg.xmin, xmax=cfg.xmax; if(!(xmax>xmin)) xmax=xmin+1;
+  let ymin,ymax;
+  if(cfg.ymin!=null&&cfg.ymax!=null){ ymin=cfg.ymin; ymax=cfg.ymax; }
+  else { let lo=Infinity,hi=-Infinity; cfg.series.forEach(s=>s.pts.forEach(p=>{ if(p.y!=null&&Number.isFinite(p.y)){ lo=Math.min(lo,p.y); hi=Math.max(hi,p.y);} }));
+    if(!Number.isFinite(lo)){lo=0;hi=1;} if(hi-lo<1e-9){hi=lo+1;} const pad=(hi-lo)*0.06; lo-=pad; hi+=pad; const t=niceTicks(lo,hi,6); ymin=Math.floor(lo/t.step)*t.step; ymax=Math.ceil(hi/t.step)*t.step; }
+  const sx=x=>ml+(x-xmin)/(xmax-xmin)*pw, sy=y=>mt+(1-(y-ymin)/(ymax-ymin))*ph;
+  const xt=niceTicks(xmin,xmax,Math.max(3,Math.round(pw/80))), yt=niceTicks(ymin,ymax,Math.max(3,Math.round(ph/46)));
+  let s='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(cfg.label||'Gráfica')+'">';
+  s+='<defs><clipPath id="cp'+c._id+'"><rect x="'+ml+'" y="'+mt+'" width="'+pw+'" height="'+ph+'"/></clipPath></defs>';
+  s+='<rect x="'+ml+'" y="'+mt+'" width="'+pw+'" height="'+ph+'" style="fill:var(--surface)"/>';
+  // cuadrícula tipo papel milimétrico
+  const minor=(t,lo,hi,fn,hor)=>{ let o=''; const st=t.step/5; for(let v=Math.ceil(lo/st-1e-9)*st; v<=hi+st*1e-9; v+=st){ const p=fn(v); o+=hor?'<line x1="'+ml+'" x2="'+(ml+pw)+'" y1="'+p+'" y2="'+p+'"/>':'<line y1="'+mt+'" y2="'+(mt+ph)+'" x1="'+p+'" x2="'+p+'"/>'; } return o; };
+  s+='<g style="stroke:var(--grid-minor);stroke-width:1">'+minor(xt,xmin,xmax,sx,false)+minor(yt,ymin,ymax,sy,true)+'</g>';
+  s+='<g style="stroke:var(--grid);stroke-width:1">'+xt.ticks.map(v=>'<line x1="'+sx(v)+'" x2="'+sx(v)+'" y1="'+mt+'" y2="'+(mt+ph)+'"/>').join('')+yt.ticks.map(v=>'<line y1="'+sy(v)+'" y2="'+sy(v)+'" x1="'+ml+'" x2="'+(ml+pw)+'"/>').join('')+'</g>';
+  s+='<rect x="'+ml+'" y="'+mt+'" width="'+pw+'" height="'+ph+'" style="fill:none;stroke:var(--ink);stroke-width:1.2"/>';
+  s+='<g class="ax">'+xt.ticks.map(v=>'<text x="'+sx(v)+'" y="'+(mt+ph+16)+'" text-anchor="middle">'+(+v.toFixed(6))+'</text>').join('')+yt.ticks.map(v=>'<text x="'+(ml-7)+'" y="'+(sy(v)+4)+'" text-anchor="end">'+(+v.toFixed(6))+'</text>').join('')+'</g>';
+  s+='<text class="axt" x="'+(ml+pw/2)+'" y="'+(H-6)+'" text-anchor="middle">'+esc(cfg.xlabel)+'</text>';
+  s+='<text class="axt" transform="translate(14,'+(mt+ph/2)+') rotate(-90)" text-anchor="middle">'+esc(cfg.ylabel)+'</text>';
+  s+='<g clip-path="url(#cp'+c._id+')">';
+  (cfg.vlines||[]).forEach(v=>{ s+='<line x1="'+sx(v.x)+'" x2="'+sx(v.x)+'" y1="'+mt+'" y2="'+(mt+ph)+'" style="stroke:'+(v.color||'var(--accent)')+';stroke-width:1.5;stroke-dasharray:5 4"/>'; });
+  cfg.series.forEach(se=>{ let d='',pen=false; se.pts.forEach(p=>{ if(p.y==null||!Number.isFinite(p.y)){pen=false;return;} d+=(pen?'L':'M')+sx(p.x).toFixed(1)+' '+sy(p.y).toFixed(1); pen=true; });
+    if(!se.markersOnly) s+='<path d="'+d+'" style="fill:none;stroke:'+se.color+';stroke-width:2.4;stroke-linejoin:round;'+(se.dash?'stroke-dasharray:6 4;':'')+'"/>';
+    if(se.markers) se.pts.forEach(p=>{ if(p.y!=null&&Number.isFinite(p.y)) s+='<circle cx="'+sx(p.x).toFixed(1)+'" cy="'+sy(p.y).toFixed(1)+'" r="3.5" style="fill:'+se.color+';stroke:var(--surface);stroke-width:1"/>'; }); });
+  if(cfg.cursor){ const k=cfg.cursor; s+='<line x1="'+sx(k.x)+'" x2="'+sx(k.x)+'" y1="'+mt+'" y2="'+(mt+ph)+'" style="stroke:var(--accent);stroke-width:1.5"/>';
+    if(k.y!=null) s+='<circle cx="'+sx(k.x)+'" cy="'+sy(k.y)+'" r="6" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"/>'; }
+  (cfg.marks||[]).forEach(m=>{ if(m.y==null) return; s+='<path d="M'+sx(m.x)+' '+(sy(m.y)-8)+' l7 8 l-7 8 l-7 -8z" style="fill:'+(m.color||'var(--accent)')+';stroke:var(--surface);stroke-width:1.5"/>'; });
+  s+='</g>';
+  (cfg.vlines||[]).forEach(v=>{ if(v.label) s+='<text x="'+(sx(v.x)+5)+'" y="'+(mt+13)+'" style="fill:var(--accent);font-size:11px;font-weight:700">'+esc(v.label)+'</text>'; });
+  s+='</svg>';
+  c.querySelector('.svgbox').innerHTML=s;
+  c._geom={ml,mr,mt,mb,W,H,xmin,xmax,ymin,ymax,sx,sy};
+}
+function setPlot(c,cfg){ c._cfg=cfg; drawPlot(c); }
+if(typeof ResizeObserver!=='undefined'){ const ro=new ResizeObserver(()=>{ plots.forEach(p=>{ if(p.isConnected) drawPlot(p); }); }); window.addEventListener('load',()=>ro.observe(document.body)); }
+window.addEventListener('resize',()=>plots.forEach(p=>{ if(p.isConnected) drawPlot(p); }));
+
+/* ---- pestañas ---- */
+const tabs=$('#tabs');
+function buildTabs(){ tabs.innerHTML=''; const all=METHODS.concat([{key:'data',tab:'Datos del laboratorio',color:'#7030A0'}]);
+  all.forEach(m=>{ const b=el('button',{class:'tab',role:'tab','aria-selected':String(state.active===m.key),type:'button'},esc(m.tab)); if(state.active===m.key) tabs.style.setProperty('--tab',m.color);
+    b.style.setProperty('--tab',m.color); b.addEventListener('click',()=>{ state.active=m.key; buildTabs(); mount(); }); tabs.appendChild(b); }); }
+
+/* ---- vista de titulación ---- */
+let cur=null;
+function mountMethod(m){
+  const main=$('#main'); plots.length=0;
+  main.innerHTML='<div class="layout"><aside class="panel controls"><h2>Datos del ejercicio</h2><div id="fields"></div><p class="note">Los resultados se recalculan al escribir. Usa punto decimal.</p></aside>'+
+  '<section class="results"><div class="msg" id="msg" hidden></div><div class="infobar" id="infobar"></div>'+
+  '<div class="plotcard"><div id="plot"></div><div class="legend" id="legend"></div><div class="plotbar"><span>Toca o arrastra sobre la curva para elegir el volumen.</span><label>Mostrar hasta <select id="xf"><option value="1.5">1.5 × Veq</option><option value="2">2 × Veq</option><option value="3">3 × Veq</option></select></label></div></div>'+
+  '<div class="chips" id="chips"></div>'+
+  '<div class="panel explorer" id="explorer"></div>'+
+  '<details class="tablebox"><summary>Tabla de titulación (81 puntos)</summary><div class="btnrow"><button class="btn" id="copy" type="button">Copiar tabla</button><span class="note" style="margin:8px 0 0">Se pega directo en Excel.</span></div><div class="tablescroll"><table id="tbl"></table></div></details></section></div>';
+  cur={m,plot:$('#plot')}; makePlot(cur.plot);
+  $('#xf').value=String(state.xf[m.key]); $('#xf').addEventListener('change',e=>{ state.xf[m.key]=parseFloat(e.target.value); renderResults(); });
+  $('#copy').addEventListener('click',async()=>{ const ok=await copyText(cur.tsv||''); toast(ok?'Tabla copiada. Pégala en Excel.':'No se pudo copiar. Selecciona la tabla y cópiala a mano.'); });
+  buildFields(); renderResults();
+}
+function fieldInput(m,p,f,box){
+  const w=el('div',{class:'field'});
+  if(f.type==='select'){ w.innerHTML='<label for="f_'+f.k+'">'+esc(f.label)+'</label>'; const s=el('select',{id:'f_'+f.k}); f.opts.forEach(o=>s.appendChild(el('option',{value:o[0]},esc(o[1])))); s.value=String(p[f.k]);
+    s.addEventListener('change',()=>{ p[f.k]=Number(s.value); if(m.key==='ab'){ if(p.tipo===3&&p.pK>9) p.pK=4.76; if(p.tipo===4&&p.pK<2) p.pK=4.75; } state.V[m.key]=null; buildFields(); renderResults(); }); w.appendChild(s); }
+  else if(f.type==='preset'){ w.innerHTML='<label for="pre_'+f.label+'">'+esc(f.label)+'</label>'; const s=el('select',{id:'pre_'+f.label}); s.appendChild(el('option',{value:''},'Elegir…'));
+    f.opts.forEach((o,i)=>s.appendChild(el('option',{value:i},esc(o[0])))); s.addEventListener('change',()=>{ if(s.value==='') return; Object.assign(p,f.opts[Number(s.value)][1]); state.V[m.key]=null; buildFields(); renderResults(); }); w.appendChild(s); }
+  else { w.innerHTML='<label for="f_'+f.k+'">'+esc(f.label)+(f.hint?' <span class="hint">'+esc(f.hint)+'</span>':'')+'</label><div class="inp"><input id="f_'+f.k+'" type="number" step="any" inputmode="decimal"><span class="unit">'+esc(f.unit||'')+'</span></div>';
+    const i=w.querySelector('input'); i.value=String(p[f.k]); i.addEventListener('input',()=>{ p[f.k]=i.value===''?NaN:parseFloat(i.value); renderResults(); }); }
+  box.appendChild(w);
+}
+function buildFields(){ const m=cur.m,p=state.p[m.key],box=$('#fields'); box.innerHTML='';
+  m.fields(p).forEach(f=>{ if(f.type==='adv'){ const d=el('details',{class:'adv'},'<summary>'+esc(f.label)+'</summary>'); const inner=el('div'); f.fields.forEach(g=>fieldInput(m,p,g,inner)); d.appendChild(inner); box.appendChild(d); } else fieldInput(m,p,f,box); }); }
+function sampleCalc(m,p,c,xmax,N){ const Vs=[]; for(let k=0;k<=N;k++) Vs.push(k*xmax/N); if(c.Veq<=xmax&&!Vs.some(v=>Math.abs(v-c.Veq)<1e-9)) Vs.push(c.Veq); Vs.sort((a,b)=>a-b); return Vs.map(V=>m.calc(p,c,V)); }
+function cell(col,r){ const v=col.v(r); if(col.d==='s') return {t:String(v),l:true}; if(v==null) return {t:'n.d.'}; return {t:col.d==='e'?fE(v):fN(v,col.d)}; }
+function renderResults(){
+  if(!cur||!cur.m) return; const m=cur.m,p=state.p[m.key];
+  const bad=Object.keys(p).some(k=>!Number.isFinite(p[k])); const err=bad?'Hay un campo vacío o con un valor no válido.':m.validate(p);
+  const msg=$('#msg'); if(err){ msg.hidden=false; msg.textContent=err+' Corrígelo para ver la curva.'; return; } msg.hidden=true;
+  const c=m.prep(p); const xmax=state.xf[m.key]*c.Veq;
+  const pts=sampleCalc(m,p,c,xmax,400);
+  $('#infobar').innerHTML=m.info(p,c).map(i=>'<div class="info"><b>'+esc(i[0])+'</b><span>'+esc(i[1])+'</span></div>').join('');
+  let V=state.V[m.key]; if(V==null||V>xmax) V=c.Veq/2; V=Math.max(0,V);
+  const here=m.calc(p,c,V);
+  const series=[{pts:pts.map(r=>({x:r.V,y:r.y,r})),color:'var(--curve)'}]; let legend='<span><i style="border-color:var(--curve)"></i>'+esc(m.ylabel==='E'?'E vs referencia':m.ylabel==='pX'?'pX':m.ylabel)+'</span>';
+  if(m.key==='pp'){ series.push({pts:pts.map(r=>({x:r.V,y:r.y2})),color:'var(--teal)',dash:true}); legend+='<span><i style="border-color:var(--teal);border-top-style:dashed"></i>pAg</span>'; }
+  const eqPt=m.calc(p,c,c.Veq); legend+='<span style="color:var(--accent)">◆ Punto de equivalencia ('+fN(c.Veq,2)+' mL)</span>';
+  $('#legend').innerHTML=legend;
+  const unit=m.key==='rx'?' V':''; const xl=m.key==='edta'?'Volumen de EDTA (mL)':m.key==='pp'?'Volumen de AgNO₃ (mL)':'Volumen de titulante (mL)';
+  setPlot(cur.plot,{series,xlabel:xl,ylabel:m.ytitle,xmin:0,xmax,ymin:m.ymin,ymax:m.ymax,label:'Curva de titulación '+m.tab,
+    marks:[{x:c.Veq,y:eqPt.y}],cursor:{x:V,y:here.y},
+    tip:q=>'V = '+fN(q.x,2)+' mL · '+m.resLabel+' = '+fN(q.y,m.key==='rx'?3:2)+unit,
+    onPick:x=>{ state.V[m.key]=Math.round(x*100)/100; renderResults(); }});
+  // chips
+  const chips=$('#chips'); chips.innerHTML=''; m.keys(c).forEach(k=>{ const r=m.calc(p,c,k[1]); const b=el('button',{class:'chip',type:'button','aria-pressed':String(Math.abs(k[1]-V)<1e-6)},'<small>'+esc(k[0])+' · '+fN(k[1],2)+' mL</small><strong>'+esc(m.resLabel)+' = '+(r.y==null?'n.d.':fN(r.y,m.key==='rx'?3:2))+'</strong>');
+    b.addEventListener('click',()=>{ state.V[m.key]=k[1]; renderResults(); }); chips.appendChild(b); });
+  // explorador
+  const ex=$('#explorer'); const step=Math.max(xmax/400,0.001);
+  ex.innerHTML='<h2>Procedimiento a un volumen dado</h2><div class="row"><div class="inp vin"><input id="vnum" type="number" step="any" inputmode="decimal" aria-label="Volumen de titulante en mL"><span class="unit">mL</span></div><input id="vrange" type="range" min="0" max="'+xmax+'" step="'+step+'" aria-label="Volumen de titulante"><span class="badge">'+esc(here.zoneName)+'</span></div>'+
+    '<div><b>Ecuación:</b> '+esc(here.eq)+'</div><ol class="steps">'+here.steps.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol>'+
+    (here.y==null?'':'<div class="result">'+esc(m.resLabel)+' = <span>'+fN(here.y,m.key==='rx'?3:2)+(m.key==='rx'?' V':'')+'</span></div>');
+  const vn=$('#vnum'); vn.value=String(+V.toFixed(3)); $('#vrange').value=V;
+  $('#vrange').addEventListener('input',e=>{ state.V[m.key]=parseFloat(e.target.value); renderResults(); });
+  vn.addEventListener('change',()=>{ const x=parseFloat(vn.value); if(Number.isFinite(x)){ state.V[m.key]=Math.min(xmax,Math.max(0,x)); renderResults(); } });
+  // tabla
+  const rows=[]; for(let k=0;k<=80;k++) rows.push(m.calc(p,c,k*xmax/80));
+  let h='<thead><tr>'+m.cols.map(cl=>'<th>'+esc(cl.h)+'</th>').join('')+'</tr></thead><tbody>'; let tsv=m.cols.map(cl=>cl.h).join('\t')+'\n';
+  rows.forEach(r=>{ h+='<tr'+(r.z===2?' class="keyrow"':'')+'>'+m.cols.map(cl=>{ const x=cell(cl,r); return '<td'+(x.l?' class="l"':'')+'>'+esc(x.t)+'</td>'; }).join('')+'</tr>';
+    tsv+=m.cols.map(cl=>{ const v=cl.v(r); return cl.d==='s'?v:(v==null?'':String(+Number(v).toPrecision(8))); }).join('\t')+'\n'; });
+  $('#tbl').innerHTML=h+'</tbody>'; cur.tsv=tsv;
+}
+
+/* ---- vista de datos del laboratorio ---- */
+function mountData(){
+  const main=$('#main'); plots.length=0; cur=null;
+  main.innerHTML='<div class="layout"><aside class="panel controls"><h2>Pega tus datos</h2><div class="field"><label for="dkind">Qué mediste</label><select id="dkind"><option value="pH">pH</option><option value="mV">Potencial (mV)</option><option value="Y">Otra lectura</option></select></div>'+
+  '<div class="field"><label for="dtext">Volumen (mL) y lectura, una pareja por línea</label><textarea id="dtext" spellcheck="false" placeholder="0\t2.88&#10;1\t3.81&#10;…"></textarea></div>'+
+  '<div class="btnrow"><button class="btn" id="dex" type="button">Cargar ejemplo</button><button class="btn" id="dclr" type="button">Borrar</button></div><p class="note">Copia dos columnas desde Excel y pégalas aquí. Acepta tabulador, espacio, punto y coma o coma. Los datos de ejemplo están simulados (ácido acético 0.1 M con NaOH 0.1 M).</p></aside>'+
+  '<section class="results"><div class="msg" id="msg" hidden></div><div class="infobar" id="infobar"></div><div class="charts3"><div class="plotcard"><div id="p1"></div></div><div class="plotcard"><div id="p2"></div></div><div class="plotcard"><div id="p3"></div></div></div>'+
+  '<details class="tablebox"><summary>Tabla de derivadas</summary><div class="btnrow"><button class="btn" id="dcopy" type="button">Copiar tabla</button></div><div class="tablescroll"><table id="dtbl"></table></div></details></section></div>';
+  ['p1','p2','p3'].forEach(i=>makePlot($('#'+i)));
+  $('#dtext').value=state.data.text; $('#dkind').value=state.data.kind;
+  $('#dtext').addEventListener('input',e=>{ state.data.text=e.target.value; renderData(); });
+  $('#dkind').addEventListener('change',e=>{ state.data.kind=e.target.value; renderData(); });
+  $('#dex').addEventListener('click',()=>{ state.data.text=EXAMPLE; state.data.kind='pH'; $('#dtext').value=EXAMPLE; $('#dkind').value='pH'; renderData(); });
+  $('#dclr').addEventListener('click',()=>{ state.data.text=''; $('#dtext').value=''; renderData(); });
+  $('#dcopy').addEventListener('click',async()=>{ const ok=await copyText(state.data.tsv||''); toast(ok?'Tabla copiada. Pégala en Excel.':'No se pudo copiar.'); });
+  renderData();
+}
+function renderData(){
+  const pts=parseData(state.data.text); const msg=$('#msg'); const kindLbl={pH:'pH',mV:'Potencial (mV)',Y:'Lectura'}[state.data.kind];
+  if(pts.length<4){ msg.hidden=false; msg.textContent='Pega al menos 4 puntos (volumen y lectura) para calcular las derivadas.'; $('#infobar').innerHTML=''; ['p1','p2','p3'].forEach(i=>{ $('#'+i)._cfg=null; $('#'+i).querySelector('.svgbox').innerHTML=''; }); $('#dtbl').innerHTML=''; state.data.tsv=''; return; }
+  msg.hidden=true; const D=derivs(pts); const xmin=pts[0][0], xmax=pts[pts.length-1][0];
+  const best=D.veq2!=null?D.veq2:D.veq1;
+  $('#infobar').innerHTML='<div class="info"><b>Puntos válidos</b><span>'+pts.length+'</span></div><div class="info"><b>Veq por 1ª derivada (máximo)</b><span>'+fN(D.veq1,3)+' mL</span></div><div class="info"><b>Veq por 2ª derivada (cruce por cero)</b><span>'+(D.veq2==null?'n.d.':fN(D.veq2,3)+' mL')+'</span></div>';
+  const base={xmin,xmax,xlabel:'Volumen (mL)'};
+  setPlot($('#p1'),Object.assign({},base,{series:[{pts:pts.map(r=>({x:r[0],y:r[1]})),color:'var(--curve)',markers:true}],ylabel:kindLbl,label:'Curva de titulación con tus datos',
+    vlines:best!=null?[{x:best,label:'Veq = '+fN(best,2)+' mL'}]:[],tip:q=>'V = '+fN(q.x,2)+' mL · '+kindLbl+' = '+fN(q.y,2)}));
+  setPlot($('#p2'),Object.assign({},base,{series:[{pts:D.m1.map(r=>({x:r.x,y:r.d})),color:'var(--teal)',markers:true}],ylabel:'ΔY/ΔV',label:'Primera derivada',
+    marks:D.i1>=0?[{x:D.m1[D.i1].x,y:D.m1[D.i1].d}]:[],tip:q=>'V = '+fN(q.x,3)+' mL · ΔY/ΔV = '+fN(q.y,2)}));
+  setPlot($('#p3'),Object.assign({},base,{series:[{pts:D.m2.map(r=>({x:r.x,y:r.d2})),color:'var(--accent)',markers:true}],ylabel:'Δ²Y/ΔV²',label:'Segunda derivada',
+    vlines:D.veq2!=null?[{x:D.veq2,color:'var(--muted)'}]:[],tip:q=>'V = '+fN(q.x,3)+' mL · Δ²Y/ΔV² = '+fN(q.y,2)}));
+  let h='<thead><tr><th>V (mL)</th><th>'+esc(kindLbl)+'</th><th>V medio</th><th>ΔY/ΔV</th><th>V medio 2</th><th>Δ²Y/ΔV²</th></tr></thead><tbody>'; let tsv='V (mL)\t'+kindLbl+'\tV medio\tΔY/ΔV\tV medio 2\tΔ²Y/ΔV²\n';
+  pts.forEach((r,i)=>{ const a=D.m1[i],b=D.m2[i]; h+='<tr><td>'+fN(r[0],2)+'</td><td>'+fN(r[1],2)+'</td><td>'+(a?fN(a.x,3):'')+'</td><td>'+(a?fN(a.d,3):'')+'</td><td>'+(b?fN(b.x,3):'')+'</td><td>'+(b?fN(b.d2,3):'')+'</td></tr>';
+    tsv+=[r[0],r[1],a?a.x:'',a?a.d:'',b?b.x:'',b?b.d2:''].join('\t')+'\n'; });
+  $('#dtbl').innerHTML=h+'</tbody>'; state.data.tsv=tsv;
+}
+
+function mount(){ if(state.active==='data') mountData(); else mountMethod(METHODS.filter(m=>m.key===state.active)[0]); }
+buildTabs(); mount();
+})();
+</script>
+</body>
+</html>
